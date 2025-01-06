@@ -6,6 +6,27 @@ import { MediumClone } from "../target/types/medium_clone";
 import { assert } from "chai";
 import { PublicKey, SystemProgram, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
+async function createPost(title: string, content: string, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
+  const postId = new anchor.BN(123); // Example post_id, replace with your logic
+
+  await program.methods.createPost(title, content, postId)
+    .accounts({
+      author: author.publicKey,
+    })
+    .rpc();
+
+  const [postPda, bump] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("post"),
+      author.publicKey.toBuffer(),
+      postId.toArrayLike(Buffer, "le", 8)
+    ],
+    program.programId
+  );
+
+  return postPda;
+}
+
 describe("medium-clone", () => {
   // Configure the client to use the local cluster.
   const provider = AnchorProvider.env();
@@ -31,7 +52,6 @@ describe("medium-clone", () => {
       })
       .rpc();
 
-    console.log(tx)
     console.log("CreatePost transaction signature", tx);
 
     // Fetch the post account
@@ -39,9 +59,10 @@ describe("medium-clone", () => {
       [
         Buffer.from('post'),
         author.publicKey.toBuffer(),
-        new anchor.BN(postId).toArrayLike(Buffer, "le", 8)
+        postId.toArrayLike(Buffer, "le", 8)
       ],
-      program.programId);
+      program.programId
+    );
 
     const postsPda = postsPdaAndBump[0];
     const dataFromPda = await program.account.post.fetch(postsPda);
@@ -56,6 +77,7 @@ describe("medium-clone", () => {
   // it("Updates the post's title and content!", async () => {
   //   const newTitle = "My Updated Post";
   //   const newContent = "This is the updated content of my post.";
+  //   const postPda = await createPost(postTitle, postContent, author, program);
 
   //   // Send the transaction to update the post
   //   const tx = await program.methods.updatePost(newTitle, newContent)
@@ -67,13 +89,12 @@ describe("medium-clone", () => {
 
   //   console.log("UpdatePost transaction signature", tx);
 
-  //   // Fetch the updated post account
-  //   const postAccount = await getPostAccount(postPda);
+  //   const dataFromPda = await program.account.post.fetch(postPda);
 
   //   // Assertions
-  //   assert.equal(postAccount.title, newTitle, "Title was not updated correctly");
-  //   assert.equal(postAccount.content, newContent, "Content was not updated correctly");
-  //   assert.isAtLeast(postAccount.updatedAt.toNumber(), postAccount.createdAt.toNumber(), "updated_at timestamp should be >= created_at");
+  //   assert.equal(dataFromPda.title, newTitle, "Title was not updated correctly");
+  //   assert.equal(dataFromPda.content, newContent, "Content was not updated correctly");
+  //   assert.isAtLeast(dataFromPda.updatedAt.toNumber(), dataFromPda.createdAt.toNumber(), "updated_at timestamp should be >= created_at");
   // });
 
   // it("Adds a comment to the post!", async () => {
@@ -107,25 +128,26 @@ describe("medium-clone", () => {
   //   assert.equal(postAccountAfter.commentCount, currentCommentCount + 1, "Comment count did not increment");
   // });
 
-  // it("Deletes the post!", async () => {
-  //   // Send the transaction to delete the post
-  //   const tx = await program.methods.deletePost()
-  //     .accounts({
-  //       post: postPda,
-  //       author: author.publicKey,
-  //     })
-  //     .rpc();
+  it("Deletes the post!", async () => {
+    const postPda = await createPost('Test Post', 'Test Content', author, program);
+    // Send the transaction to delete the post
+    const tx = await program.methods.deletePost()
+      .accounts({
+        post: postPda,
+        author: author.publicKey,
+      })
+      .rpc();
 
-  //   console.log("DeletePost transaction signature", tx);
+    console.log("DeletePost transaction signature", tx);
 
-  //   // Attempt to fetch the post account, expecting it to fail
-  //   try {
-  //     await getPostAccount(postPda);
-  //     assert.fail("Post account should be deleted");
-  //   } catch (err: any) {
-  //     assert.ok(err.message.includes("Account does not exist"), "Unexpected error message");
-  //   }
-  // });
+    // Attempt to fetch the post account, expecting it to fail
+    try {
+      await program.account.post.fetch(postPda);
+      assert.fail("Post account should be deleted");
+    } catch (err: any) {
+      assert.ok(err.message.includes("Account does not exist"), "Unexpected error message");
+    }
+  });
 
   // it("Prevents unauthorized updates to the post!", async () => {
   //   // Create a new keypair to simulate another user

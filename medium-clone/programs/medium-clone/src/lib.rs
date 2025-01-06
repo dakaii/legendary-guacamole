@@ -91,31 +91,34 @@ pub struct CreatePost<'info> {
 
 /// Context for updating an existing post.
 #[derive(Accounts)]
-#[instruction(post_id: u64)]
+#[instruction(title: String, content: String)]
 pub struct UpdatePost<'info> {
     #[account(
         mut,
-        seeds = [b"post", author.key().as_ref(), post_id.to_le_bytes().as_ref()],
+        seeds = [b"post", author.key().as_ref(), post.post_id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation (pretty fucking obvious, i guess.)
         bump,
         has_one = author
     )]
     pub post: Account<'info, Post>, // The Post account to be updated
+    // no need to add #[account(mut)] for `author` as it is not being modified
     pub author: Signer<'info>, // The author signing the transaction
+                               // no need to pass `system_program` here as we are not creating or closing any new accounts
 }
 
 /// Context for deleting a post.
 #[derive(Accounts)]
-#[instruction(post_id: u64)]
 pub struct DeletePost<'info> {
     #[account(
         mut,
-        seeds = [b"post", author.key().as_ref(), post_id.to_le_bytes().as_ref()],
+        seeds = [b"post", author.key().as_ref(), post.post_id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation
         bump,
         has_one = author,
         close = author
     )]
     pub post: Account<'info, Post>, // The Post account to be deleted
+    // no need to add #[account(mut)] for `author` as it is not being modified
     pub author: Signer<'info>, // The author signing the transaction
+    pub system_program: Program<'info, System>,
 }
 
 /// Context for adding a comment to a post.
@@ -137,7 +140,6 @@ pub struct AddComment<'info> {
     pub system_program: Program<'info, System>, // System program required for account creation
 }
 
-/// Helper function to retrieve comment count as bytes.
 fn get_comment_count(post: &Post) -> [u8; 4] {
     post.comment_count.to_le_bytes() // Converts `comment_count` (u32) to little-endian byte array
 }
