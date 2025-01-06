@@ -6,16 +6,15 @@ declare_id!("EXint3MGu4oJkyYA96uQ1tw1RUBz9rpX2hXV71cGeGtA");
 pub mod medium_clone {
     use super::*;
 
-    /// Creates a new post with a unique post_id.
     pub fn create_post(
         ctx: Context<CreatePost>,
         title: String,
         content: String,
-        post_id: u64,
+        id: u64,
     ) -> Result<()> {
         let post = &mut ctx.accounts.post;
+        post.id = id;
         post.author = *ctx.accounts.author.key;
-        post.post_id = post_id;
         post.title = title;
         post.content = content;
         let clock = Clock::get()?;
@@ -41,8 +40,9 @@ pub mod medium_clone {
     }
 
     /// Adds a comment to a post, initializing a new Comment account.
-    pub fn add_comment(ctx: Context<AddComment>, content: String) -> Result<()> {
+    pub fn add_comment(ctx: Context<AddComment>, id: u64, content: String) -> Result<()> {
         let comment = &mut ctx.accounts.comment;
+        comment.id = id;
         comment.author = *ctx.accounts.author.key;
         comment.content = content;
         comment.created_at = Clock::get()?.unix_timestamp;
@@ -56,7 +56,7 @@ pub mod medium_clone {
 #[account]
 pub struct Post {
     pub author: Pubkey,     // 32 bytes: Public key of the post's author
-    pub post_id: u64,       // 8 bytes: Unique identifier for the post
+    pub id: u64,            // 8 bytes: Unique identifier for the post
     pub title: String,      // 4 + 100 bytes: Title of the post
     pub content: String,    // 4 + 1000 bytes: Content of the post
     pub created_at: i64,    // 8 bytes: Timestamp when the post was created
@@ -67,6 +67,7 @@ pub struct Post {
 /// Represents a comment on a blog post.
 #[account]
 pub struct Comment {
+    pub id: u64,         // 8 bytes: Unique identifier for the comment
     pub author: Pubkey,  // 32 bytes: Public key of the comment's author
     pub content: String, // 4 + 500 bytes: Content of the comment
     pub created_at: i64, // 8 bytes: Timestamp when the comment was created
@@ -74,13 +75,13 @@ pub struct Comment {
 
 /// Context for creating a new post.
 #[derive(Accounts)]
-#[instruction(title: String, content: String, post_id: u64)]
+#[instruction(title: String, content: String, id: u64)]
 pub struct CreatePost<'info> {
     #[account(
         init,                                                 // Initializes a new Post account
         payer = author,                                       // `author` pays for the account creation
         space = 8 + 32 + 8 + 4 + 100 + 4 + 1000 + 8 + 8 + 4, // Total space for Post account
-        seeds = [b"post", author.key().as_ref(), post_id.to_le_bytes().as_ref()],
+        seeds = [b"post", author.key().as_ref(), id.to_le_bytes().as_ref()],
         bump
     )]
     pub post: Account<'info, Post>, // The Post account to be created
@@ -95,7 +96,7 @@ pub struct CreatePost<'info> {
 pub struct UpdatePost<'info> {
     #[account(
         mut,
-        seeds = [b"post", author.key().as_ref(), post.post_id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation (pretty fucking obvious, i guess.)
+        seeds = [b"post", author.key().as_ref(), post.id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation (pretty fucking obvious, i guess.)
         bump,
         has_one = author
     )]
@@ -110,7 +111,7 @@ pub struct UpdatePost<'info> {
 pub struct DeletePost<'info> {
     #[account(
         mut,
-        seeds = [b"post", author.key().as_ref(), post.post_id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation
+        seeds = [b"post", author.key().as_ref(), post.id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation
         bump,
         has_one = author,
         close = author
@@ -123,13 +124,13 @@ pub struct DeletePost<'info> {
 
 /// Context for adding a comment to a post.
 #[derive(Accounts)]
-#[instruction(content: String)]
+#[instruction(id: u64, content: String)]
 pub struct AddComment<'info> {
     #[account(
         init,                                                 // Initializes a new Comment account
         payer = author,                                       // `author` pays for the account creation
-        space = 8 + 32 + 4 + 500 + 8,                        // Total space for Comment account
-        seeds = [b"comment", post.key().as_ref(), &get_comment_count(&post)],
+        space = 8 + 8 + 32 + 4 + 500 + 8,                     // Total space for Comment account
+        seeds = [b"comment", post.key().as_ref(), id.to_le_bytes().as_ref()],
         bump
     )]
     pub comment: Account<'info, Comment>, // The Comment account to be created
@@ -138,8 +139,4 @@ pub struct AddComment<'info> {
     #[account(mut)]
     pub author: Signer<'info>, // The author signing the transaction
     pub system_program: Program<'info, System>, // System program required for account creation
-}
-
-fn get_comment_count(post: &Post) -> [u8; 4] {
-    post.comment_count.to_le_bytes() // Converts `comment_count` (u32) to little-endian byte array
 }

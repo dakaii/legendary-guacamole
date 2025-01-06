@@ -7,7 +7,7 @@ import { assert } from "chai";
 import { PublicKey, SystemProgram, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 async function createPost(title: string, content: string, id: number, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
-  const postId = new anchor.BN(id); // Example post_id, replace with your logic
+  const postId = new anchor.BN(id);
 
   await program.methods.createPost(title, content, postId)
     .accounts({
@@ -27,6 +27,28 @@ async function createPost(title: string, content: string, id: number, author: an
   return postPda;
 }
 
+async function addComment(postPda: PublicKey, content: string, id: number, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
+  const commentId = new anchor.BN(id);
+
+  const [commentPda, bump] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("comment"),
+      postPda.toBuffer(),
+      commentId.toArrayLike(Buffer, "le", 8)
+    ],
+    program.programId
+  );
+
+  await program.methods.addComment(commentId, content)
+    .accounts({
+      post: postPda,
+      author: author.publicKey,
+    })
+    .rpc();
+
+  return commentPda;
+}
+
 describe("medium-clone", () => {
   // Configure the client to use the local cluster.
   const provider = AnchorProvider.env();
@@ -41,8 +63,6 @@ describe("medium-clone", () => {
 
   const postId = new anchor.BN(1); // Starting post_id
 
-  const commentContent = "Great post!";
-
   it("Creates a new post!", async () => {
     // Derive the PDA for the post
     // Send the transaction to create a post
@@ -54,7 +74,6 @@ describe("medium-clone", () => {
 
     console.log("CreatePost transaction signature", tx);
 
-    // Fetch the post account
     const postsPdaAndBump = anchor.web3.PublicKey.findProgramAddressSync(
       [
         Buffer.from('post'),
@@ -65,13 +84,13 @@ describe("medium-clone", () => {
     );
 
     const postsPda = postsPdaAndBump[0];
-    const dataFromPda = await program.account.post.fetch(postsPda);
-    // Assertions
-    assert.ok(dataFromPda.author.equals(author.publicKey), "Author mismatch");
-    assert.equal(dataFromPda.postId.toNumber(), postId.toNumber(), "Post ID mismatch");
-    assert.equal(dataFromPda.title, postTitle, "Title mismatch");
-    assert.equal(dataFromPda.content, postContent, "Content mismatch");
-    assert.equal(dataFromPda.commentCount, 0, "Initial comment count should be 0");
+    const postAccount = await program.account.post.fetch(postsPda);
+
+    assert.ok(postAccount.author.equals(author.publicKey), "Author mismatch");
+    assert.equal(postAccount.id.toNumber(), postId.toNumber(), "Post ID mismatch");
+    assert.equal(postAccount.title, postTitle, "Title mismatch");
+    assert.equal(postAccount.content, postContent, "Content mismatch");
+    assert.equal(postAccount.commentCount, 0, "Initial comment count should be 0");
   });
 
   it("Updates the post's title and content!", async () => {
@@ -89,47 +108,51 @@ describe("medium-clone", () => {
 
     console.log("UpdatePost transaction signature", tx);
 
-    const dataFromPda = await program.account.post.fetch(postPda);
+    const postAccount = await program.account.post.fetch(postPda);
 
-    // Assertions
-    assert.equal(dataFromPda.title, newTitle, "Title was not updated correctly");
-    assert.equal(dataFromPda.content, newContent, "Content was not updated correctly");
-    assert.isAtLeast(dataFromPda.updatedAt.toNumber(), dataFromPda.createdAt.toNumber(), "updated_at timestamp should be >= created_at");
+    assert.equal(postAccount.title, newTitle, "Title was not updated correctly");
+    assert.equal(postAccount.content, newContent, "Content was not updated correctly");
+    assert.isAtLeast(postAccount.updatedAt.toNumber(), postAccount.createdAt.toNumber(), "updated_at timestamp should be >= created_at");
   });
 
-  // it("Adds a comment to the post!", async () => {
-  //   // Fetch the current comment count
-  //   const postAccountBefore = await getPostAccount(postPda);
-  //   const currentCommentCount = postAccountBefore.commentCount;
+  it("Adds a comment to the post!", async () => {
+    const commentId = new anchor.BN(1);
+    const commentContent = "Great post!";
+    const postPda = await createPost(postTitle, postContent, 3, author, program);
+    const postAccount = await program.account.post.fetch(postPda);
+    const currentCommentCount = postAccount.commentCount;
 
-  //   // Derive the PDA for the comment
-  //   const [cPda, cBump] = await findCommentPda(program.programId, postPda, currentCommentCount);
-  //   commentPda = cPda;
-  //   commentBump = cBump;
+    const tx = await program.methods.addComment(commentId, commentContent)
+      .accounts({
+        post: postPda,
+        author: author.publicKey,
+      })
+      .rpc();
 
-  //   // Send the transaction to add a comment
-  //   const tx = await program.methods.addComment(commentContent)
-  //     .accounts({
-  //       author: author.publicKey,
-  //     })
-  //     .rpc();
+    console.log("AddComment transaction signature", tx);
 
-  //   console.log("AddComment transaction signature", tx);
+    const commentsPdaAndBump = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('comment'),
+        postPda.toBuffer(),
+        commentId.toArrayLike(Buffer, "le", 8)
+      ],
+      program.programId
+    );
 
-  //   // Fetch the comment account
-  //   const commentAccount = await getCommentAccount(commentPda);
+    const commentsPda = commentsPdaAndBump[0];
 
-  //   // Assertions for comment
-  //   assert.ok(commentAccount.author.equals(author.publicKey), "Comment author mismatch");
-  //   assert.equal(commentAccount.content, commentContent, "Comment content mismatch");
+    const commentAccount = await program.account.comment.fetch(commentsPda);
 
-  //   // Fetch the post account after adding comment
-  //   const postAccountAfter = await getPostAccount(postPda);
-  //   assert.equal(postAccountAfter.commentCount, currentCommentCount + 1, "Comment count did not increment");
-  // });
+    assert.ok(commentAccount.author.equals(author.publicKey), "Comment author mismatch");
+    assert.equal(commentAccount.content, commentContent, "Comment content mismatch");
+
+    const postAccountAfter = await program.account.post.fetch(postPda);
+    assert.equal(postAccountAfter.commentCount, currentCommentCount + 1, "Comment count did not increment");
+  });
 
   it("Deletes the post!", async () => {
-    const postPda = await createPost('Test Post', 'Test Content', 3, author, program);
+    const postPda = await createPost('Test Post', 'Test Content', 4, author, program);
     // Send the transaction to delete the post
     const tx = await program.methods.deletePost()
       .accounts({
@@ -150,7 +173,7 @@ describe("medium-clone", () => {
   });
 
   it("Prevents unauthorized updates to the post!", async () => {
-    const postPda = await createPost('Test Post', 'Test Content', 4, author, program);
+    const postPda = await createPost('Test Post', 'Test Content', 5, author, program);
     // Create a new keypair to simulate another user
     const otherUser = Keypair.generate();
 
