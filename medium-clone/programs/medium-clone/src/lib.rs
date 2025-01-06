@@ -50,6 +50,23 @@ pub mod medium_clone {
 
         Ok(())
     }
+
+    pub fn update_comment(ctx: Context<UpdateComment>, content: String) -> Result<()> {
+        let comment = &mut ctx.accounts.comment;
+        comment.content = content;
+        comment.updated_at = Clock::get()?.unix_timestamp;
+        Ok(())
+    }
+
+    pub fn delete_comment(ctx: Context<DeleteComment>) -> Result<()> {
+        // Optionally decrement the comment_count on the post
+        let post = &mut ctx.accounts.post;
+        post.comment_count = post.comment_count.saturating_sub(1);
+
+        // The comment account is automatically closed and lamports refunded
+        // to `author` (via `close = author`).
+        Ok(())
+    }
 }
 
 /// Represents a blog post.
@@ -71,6 +88,7 @@ pub struct Comment {
     pub author: Pubkey,  // 32 bytes: Public key of the comment's author
     pub content: String, // 4 + 500 bytes: Content of the comment
     pub created_at: i64, // 8 bytes: Timestamp when the comment was created
+    pub updated_at: i64, // 8 bytes: Timestamp when the comment was last updated
 }
 
 /// Context for creating a new post.
@@ -129,7 +147,7 @@ pub struct AddComment<'info> {
     #[account(
         init,                                                 // Initializes a new Comment account
         payer = author,                                       // `author` pays for the account creation
-        space = 8 + 8 + 32 + 4 + 500 + 8,                     // Total space for Comment account
+        space = 8 + 8 + 32 + 4 + 500 + 8 + 8,                 // Total space for Comment account
         seeds = [b"comment", post.key().as_ref(), id.to_le_bytes().as_ref()],
         bump
     )]
@@ -139,4 +157,38 @@ pub struct AddComment<'info> {
     #[account(mut)]
     pub author: Signer<'info>, // The author signing the transaction
     pub system_program: Program<'info, System>, // System program required for account creation
+}
+
+#[derive(Accounts)]
+#[instruction(content: String)]
+pub struct UpdateComment<'info> {
+    #[account(
+        mut,
+        seeds = [b"comment", post.key().as_ref(), comment.id.to_le_bytes().as_ref()],
+        bump,
+        has_one = author
+    )]
+    pub comment: Account<'info, Comment>,
+    #[account(mut)]
+    pub post: Account<'info, Post>,
+    pub author: Signer<'info>,
+    // Not creating or closing an account, so `system_program` is not mandatory
+}
+
+#[derive(Accounts)]
+pub struct DeleteComment<'info> {
+    // We pass in the Post so that the seeds can reference it for the Comment account
+    #[account(
+        mut,
+        seeds = [b"comment", post.key().as_ref(), comment.id.to_le_bytes().as_ref()],
+        bump,
+        has_one = author,
+        close = author
+    )]
+    pub comment: Account<'info, Comment>,
+    #[account(mut)]
+    pub post: Account<'info, Post>,
+    pub author: Signer<'info>,
+    // Needed because we are closing an account
+    pub system_program: Program<'info, System>,
 }

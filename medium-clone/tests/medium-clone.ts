@@ -27,7 +27,7 @@ async function createPost(title: string, content: string, id: number, author: an
   return postPda;
 }
 
-async function addComment(postPda: PublicKey, content: string, id: number, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
+async function createComment(id: number, content: string, postPda: PublicKey, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
   const commentId = new anchor.BN(id);
 
   const [commentPda, _bump] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -147,6 +147,50 @@ describe("medium-clone", () => {
     const postAccountAfter = await program.account.post.fetch(postPda);
     assert.equal(postAccountAfter.commentCount, currentCommentCount + 1, "Comment count did not increment");
   });
+
+  // it("Updates the comment content!", async () => {
+  //   const commentContent = "Great post!";
+  //   const postPda = await createPost(postTitle, postContent, 10, author, program);
+  //   const commentPda = await createComment(11, commentContent, postPda, author, program);
+
+  //   // Send the transaction to update the comment
+  //   const tx = await program.methods.updateComment("Updated comment content")
+  //     .accounts({
+  //       comment: commentPda,
+  //       post: postPda,
+  //       author: author.publicKey,
+  //     })
+  //     .rpc();
+
+  //   console.log("UpdateComment transaction signature", tx);
+
+  //   const commentAccount = await program.account.comment.fetch(commentPda);
+
+  //   assert.equal(commentAccount.content, "Updated comment content", "Comment content was not updated correctly");
+  // });
+
+  // it("Deletes a comment from the post!", async () => {
+  //   const postPda = await createPost(postTitle, postContent, 9, author, program);
+  //   const commentPda = await createComment(10, "Great post!", postPda, author, program);
+
+  //   const tx = await program.methods.deleteComment()
+  //     .accounts({
+  //       comment: commentPda,
+  //       post: postPda,
+  //       author: author.publicKey,
+  //     })
+  //     .rpc();
+
+  //   console.log("DeleteComment transaction signature", tx);
+
+  //   // Attempt to fetch the comment account, expecting it to fail
+  //   try {
+  //     await program.account.comment.fetch(commentPda);
+  //     assert.fail("Comment account should be deleted");
+  //   } catch (err: any) {
+  //     assert.ok(err.message.includes("Account does not exist"), "Unexpected error message");
+  //   }
+  // });
 
   it("Deletes the post!", async () => {
     const postPda = await createPost('Test Post', 'Test Content', 4, author, program);
