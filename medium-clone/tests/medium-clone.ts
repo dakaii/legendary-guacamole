@@ -6,8 +6,8 @@ import { MediumClone } from "../target/types/medium_clone";
 import { assert } from "chai";
 import { PublicKey, SystemProgram, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
-async function createPost(title: string, content: string, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
-  const postId = new anchor.BN(123); // Example post_id, replace with your logic
+async function createPost(title: string, content: string, id: number, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
+  const postId = new anchor.BN(id); // Example post_id, replace with your logic
 
   await program.methods.createPost(title, content, postId)
     .accounts({
@@ -74,28 +74,28 @@ describe("medium-clone", () => {
     assert.equal(dataFromPda.commentCount, 0, "Initial comment count should be 0");
   });
 
-  // it("Updates the post's title and content!", async () => {
-  //   const newTitle = "My Updated Post";
-  //   const newContent = "This is the updated content of my post.";
-  //   const postPda = await createPost(postTitle, postContent, author, program);
+  it("Updates the post's title and content!", async () => {
+    const newTitle = "My Updated Post";
+    const newContent = "This is the updated content of my post.";
+    const postPda = await createPost(postTitle, postContent, 2, author, program);
 
-  //   // Send the transaction to update the post
-  //   const tx = await program.methods.updatePost(newTitle, newContent)
-  //     .accounts({
-  //       post: postPda,
-  //       author: author.publicKey,
-  //     })
-  //     .rpc();
+    // Send the transaction to update the post
+    const tx = await program.methods.updatePost(newTitle, newContent)
+      .accounts({
+        post: postPda,
+        author: author.publicKey,
+      })
+      .rpc();
 
-  //   console.log("UpdatePost transaction signature", tx);
+    console.log("UpdatePost transaction signature", tx);
 
-  //   const dataFromPda = await program.account.post.fetch(postPda);
+    const dataFromPda = await program.account.post.fetch(postPda);
 
-  //   // Assertions
-  //   assert.equal(dataFromPda.title, newTitle, "Title was not updated correctly");
-  //   assert.equal(dataFromPda.content, newContent, "Content was not updated correctly");
-  //   assert.isAtLeast(dataFromPda.updatedAt.toNumber(), dataFromPda.createdAt.toNumber(), "updated_at timestamp should be >= created_at");
-  // });
+    // Assertions
+    assert.equal(dataFromPda.title, newTitle, "Title was not updated correctly");
+    assert.equal(dataFromPda.content, newContent, "Content was not updated correctly");
+    assert.isAtLeast(dataFromPda.updatedAt.toNumber(), dataFromPda.createdAt.toNumber(), "updated_at timestamp should be >= created_at");
+  });
 
   // it("Adds a comment to the post!", async () => {
   //   // Fetch the current comment count
@@ -129,7 +129,7 @@ describe("medium-clone", () => {
   // });
 
   it("Deletes the post!", async () => {
-    const postPda = await createPost('Test Post', 'Test Content', author, program);
+    const postPda = await createPost('Test Post', 'Test Content', 3, author, program);
     // Send the transaction to delete the post
     const tx = await program.methods.deletePost()
       .accounts({
@@ -149,31 +149,34 @@ describe("medium-clone", () => {
     }
   });
 
-  // it("Prevents unauthorized updates to the post!", async () => {
-  //   // Create a new keypair to simulate another user
-  //   const otherUser = Keypair.generate();
+  it("Prevents unauthorized updates to the post!", async () => {
+    const postPda = await createPost('Test Post', 'Test Content', 4, author, program);
+    // Create a new keypair to simulate another user
+    const otherUser = Keypair.generate();
 
-  //   // Airdrop SOL to the new user for transaction fees
-  //   const airdropSignature = await provider.connection.requestAirdrop(otherUser.publicKey, 2 * LAMPORTS_PER_SOL);
-  //   await provider.connection.confirmTransaction(airdropSignature, "confirmed");
+    // Airdrop SOL to the new user for transaction fees
+    const airdropSignature = await provider.connection.requestAirdrop(otherUser.publicKey, 2 * LAMPORTS_PER_SOL);
+    await provider.connection.confirmTransaction(airdropSignature, "confirmed");
 
-  //   // Create a wallet instance for the other user
-  //   const otherUserWallet = new anchor.Wallet(otherUser);
+    // Create a wallet instance for the other user
+    const otherUserWallet = new anchor.Wallet(otherUser);
 
-  //   // Attempt to update the post using another user
-  //   try {
-  //     await program.methods.updatePost("Hacked Title", "Hacked Content")
-  //       .accounts({
-  //         post: postPda,
-  //         author: otherUser.publicKey,
-  //       })
-  //       .signers([otherUser])
-  //       .rpc();
-  //     assert.fail("Unauthorized user was able to update the post");
-  //   } catch (err: any) {
-  //     assert.ok(err.message.includes("has_one constraint was not satisfied"), "Unexpected error message");
-  //   }
-  // });
+    // Attempt to update the post using another user
+    try {
+      const a = await program.methods.updatePost("Hacked Title", "Hacked Content")
+        .accounts({
+          post: postPda,
+          author: otherUserWallet.publicKey,
+        })
+        .signers([otherUserWallet.payer])
+        .rpc();
+      assert.fail("Unauthorized user was able to update the post");
+    } catch (err: any) {
+      // TODO - Check for the correct error message
+      // assert.ok(err.message.includes("has_one constraint was not satisfied"), "Unexpected error message");
+      assert.ok(err.message.includes("A seeds constraint was violated"), "Unexpected error message");
+    }
+  });
 
   // it("Creates a post with maximum title and content lengths!", async () => {
   //   const maxTitle = "T".repeat(100); // 100 characters
