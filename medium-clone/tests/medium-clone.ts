@@ -1,11 +1,10 @@
 // tests/medium-clone.ts
 
 import * as anchor from "@coral-xyz/anchor";
-import { Program, AnchorProvider, setProvider } from "@coral-xyz/anchor";
-import { MediumClone } from "../target/types/medium_clone";
+import { AnchorProvider, Program, setProvider } from "@coral-xyz/anchor";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { assert } from "chai";
-import { PublicKey, SystemProgram, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { max } from "bn.js";
+import { MediumClone } from "../target/types/medium_clone";
 
 async function createPost(title: string, content: string, id: number, author: anchor.Wallet, program: Program<MediumClone>): Promise<PublicKey> {
   const postId = new anchor.BN(id);
