@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { AnchorProvider, Program, setProvider } from "@coral-xyz/anchor";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { assert } from "chai";
-import { MediumClone } from "../target/types/medium_clone";
+import { TwitterClone } from "../target/types/twitter_clone";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 
@@ -18,7 +18,7 @@ async function createPost(
   title: string,
   content: string,
   author: anchor.Wallet,
-  program: Program<MediumClone>
+  program: Program<TwitterClone>
 ): Promise<PublicKey> {
   const postId = generate32BytesFromUuid(); // Generate a UUID for the post and remove hyphens
 
@@ -42,7 +42,7 @@ async function createPost(
 async function createComment(
   postPda: PublicKey,
   author: anchor.Wallet,
-  program: Program<MediumClone>
+  program: Program<TwitterClone>
 ): Promise<PublicKey> {
   const commentId = generate32BytesFromUuid(); // Generate a UUID for the comment and remove hyphens
 
@@ -63,12 +63,12 @@ async function createComment(
   return commentPda;
 }
 
-describe("medium-clone", () => {
+describe("twitter-clone", () => {
   // Configure the client to use the local cluster.
   const provider = AnchorProvider.env();
   setProvider(provider);
 
-  const program = anchor.workspace.MediumClone as Program<MediumClone>;
+  const program = anchor.workspace.TwitterClone as Program<TwitterClone>;
   const author = provider.wallet as anchor.Wallet;
 
   // Variables to store PDAs and data across tests
@@ -218,7 +218,7 @@ describe("medium-clone", () => {
 
   it("Creates a post with maximum title and content lengths!", async () => {
     const maxTitle = "T".repeat(100); // 100 characters
-    const maxContent = "C".repeat(770); // 870 characters (adjusted for account size limits)
+    const maxContent = "C".repeat(500); // 870 characters (adjusted for account size limits)
     const postPda = await createPost(maxTitle, maxContent, author, program);
 
     const postAccount = await program.account.post.fetch(postPda);

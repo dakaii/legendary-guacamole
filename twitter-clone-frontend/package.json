@@ -1,5 +1,5 @@
 {
-  "name": "medium-clone-frontend",
+  "name": "twitter-clone-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,9 +12,9 @@
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-vue": "^0.4.5",
     "@solana/wallet-adapter-wallets": "^0.19.32",
-    "@solana/web3.js": "^1.98.0",
-    "core-js": "^3.8.3",
-    "vue": "^3.2.13"
+    "@solana/web3.js": "^2.0.0",
+    "core-js": "^3.39.0",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
@@ -22,8 +22,8 @@
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
-    "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3"
+    "eslint": "^9.17.0",
+    "eslint-plugin-vue": "^9.32.0"
   },
   "eslintConfig": {
     "root": true,

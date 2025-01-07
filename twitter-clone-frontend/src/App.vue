@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <h1>Medium Clone</h1>
+    <h1>Twitter Clone</h1>
     <ConnectWallet />
     <CreatePost />
     <DisplayPosts />

@@ -1,4 +1,4 @@
-# medium-clone-frontend
+# twitter-clone-frontend
 
 ## Project setup
 ```

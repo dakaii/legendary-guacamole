@@ -8,7 +8,7 @@ import {
     PhantomWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { AnchorProvider, Program, web3 } from '@project-serum/anchor';
-import idl from '../idl/medium_clone.json';
+import idl from '../idl/twitter_clone.json';
 
 const { SystemProgram } = web3;
 

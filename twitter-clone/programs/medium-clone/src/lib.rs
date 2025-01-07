@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 declare_id!("65RbBepVWEt1BJrZP8G9KvsigCjTpYUiYAwtRvTPNVx5");
 
 #[program]
-pub mod medium_clone {
+pub mod twitter_clone {
 
     use super::*;
 
@@ -91,7 +91,7 @@ pub struct Post {
     pub author: Pubkey,     // 32 bytes: Public key of the post's author
     pub id: [u8; 32],       // 32 bytes: Unique identifier for the post
     pub title: String, // 4 + 100 bytes = 104 bytes (String length prefix + title string): Title of the post
-    pub content: String, // 4 + 1000 bytes = 1004 bytes (String length prefix + content string): Content of the post
+    pub content: String, // 4 + 500 bytes = 1004 bytes (String length prefix + content string): Content of the post
     pub created_at: i64, // 8 bytes: Timestamp when the post was created
     pub updated_at: i64, // 8 bytes: Timestamp when the post was last updated
     pub comment_count: u32, // 4 bytes: Number of comments on the post
@@ -103,7 +103,7 @@ pub struct Comment {
     pub author: Pubkey,  // 32 bytes: Public key of the comment's author
     pub post_id: Pubkey, // 32 bytes: Public key of the post to which the comment belongs
     pub id: [u8; 32],    // 32 bytes: Unique identifier for the comment
-    pub content: String, // 4 + 500 bytes = 504 bytes (String length prefix + content string): Content of the comment
+    pub content: String, // 4 + 300 bytes = 504 bytes (String length prefix + content string): Content of the comment
     pub created_at: i64, // 8 bytes: Timestamp when the comment was created
     pub updated_at: i64, // 8 bytes: Timestamp when the comment was last updated
 }
@@ -115,7 +115,7 @@ pub struct CreatePost<'info> {
     #[account(
         init,                                                 // Initializes a new Post account
         payer = author,                                       // `author` pays for the account creation
-        space = 8 + 32 + 32 + 4 + 100 + 4 + 1000 + 8 + 8 + 4, // Total space for Post account
+        space = 8 + 32 + 32 + 4 + 100 + 4 + 500 + 8 + 8 + 4, // Total space for Post account
         seeds = [b"post", author.key().as_ref(), id.as_ref()],
         bump
     )]
@@ -164,7 +164,7 @@ pub struct AddComment<'info> {
     #[account(
         init,                                                 // Initializes a new Comment account
         payer = author,                                       // `author` pays for the account creation
-        space = 8 + 32 + 32 + 32 + 4 + 500 + 8 + 8,             // Total space for Comment account
+        space = 8 + 32 + 32 + 32 + 4 + 300 + 8 + 8,             // Total space for Comment account
         seeds = [b"comment", post.key().as_ref(), id.as_ref()],
         bump
     )]
