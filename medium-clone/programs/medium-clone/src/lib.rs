@@ -1,17 +1,24 @@
 use anchor_lang::prelude::*;
 
-declare_id!("EXint3MGu4oJkyYA96uQ1tw1RUBz9rpX2hXV71cGeGtA");
+declare_id!("65RbBepVWEt1BJrZP8G9KvsigCjTpYUiYAwtRvTPNVx5");
 
 #[program]
 pub mod medium_clone {
+
     use super::*;
 
     pub fn create_post(
         ctx: Context<CreatePost>,
+        id: [u8; 32],
         title: String,
         content: String,
-        id: u64,
     ) -> Result<()> {
+        if title.len() > 100 {
+            return Err(ErrorCode::ExceedsMaxLength.into());
+        }
+        if content.len() > 1000 {
+            return Err(ErrorCode::ExceedsMaxLength.into());
+        }
         let post = &mut ctx.accounts.post;
         post.id = id;
         post.author = *ctx.accounts.author.key;
@@ -27,6 +34,9 @@ pub mod medium_clone {
     /// Updates an existing post's title and content.
     pub fn update_post(ctx: Context<UpdatePost>, title: String, content: String) -> Result<()> {
         let post = &mut ctx.accounts.post;
+        if post.author != *ctx.accounts.author.key {
+            return Err(ErrorCode::AuthorMismatch.into());
+        }
         post.title = title; // Update title
         post.content = content; // Update content
         post.updated_at = Clock::get()?.unix_timestamp; // Update timestamp
@@ -40,12 +50,15 @@ pub mod medium_clone {
     }
 
     /// Adds a comment to a post, initializing a new Comment account.
-    pub fn add_comment(ctx: Context<AddComment>, id: u64, content: String) -> Result<()> {
+    pub fn add_comment(ctx: Context<AddComment>, id: [u8; 32], content: String) -> Result<()> {
         let comment = &mut ctx.accounts.comment;
         comment.id = id;
+        comment.post_id = ctx.accounts.post.key();
         comment.author = *ctx.accounts.author.key;
         comment.content = content;
-        comment.created_at = Clock::get()?.unix_timestamp;
+        let clock = Clock::get()?;
+        comment.created_at = clock.unix_timestamp;
+        comment.updated_at = clock.unix_timestamp;
         ctx.accounts.post.comment_count += 1; // Increment comment count in the post
 
         Ok(())
@@ -53,6 +66,9 @@ pub mod medium_clone {
 
     pub fn update_comment(ctx: Context<UpdateComment>, content: String) -> Result<()> {
         let comment = &mut ctx.accounts.comment;
+        if comment.author != *ctx.accounts.author.key {
+            return Err(ErrorCode::AuthorMismatch.into());
+        }
         comment.content = content;
         comment.updated_at = Clock::get()?.unix_timestamp;
         Ok(())
@@ -73,33 +89,34 @@ pub mod medium_clone {
 #[account]
 pub struct Post {
     pub author: Pubkey,     // 32 bytes: Public key of the post's author
-    pub id: u64,            // 8 bytes: Unique identifier for the post
-    pub title: String,      // 4 + 100 bytes: Title of the post
-    pub content: String,    // 4 + 1000 bytes: Content of the post
-    pub created_at: i64,    // 8 bytes: Timestamp when the post was created
-    pub updated_at: i64,    // 8 bytes: Timestamp when the post was last updated
+    pub id: [u8; 32],       // 32 bytes: Unique identifier for the post
+    pub title: String, // 4 + 100 bytes = 104 bytes (String length prefix + title string): Title of the post
+    pub content: String, // 4 + 1000 bytes = 1004 bytes (String length prefix + content string): Content of the post
+    pub created_at: i64, // 8 bytes: Timestamp when the post was created
+    pub updated_at: i64, // 8 bytes: Timestamp when the post was last updated
     pub comment_count: u32, // 4 bytes: Number of comments on the post
 }
 
 /// Represents a comment on a blog post.
 #[account]
 pub struct Comment {
-    pub id: u64,         // 8 bytes: Unique identifier for the comment
     pub author: Pubkey,  // 32 bytes: Public key of the comment's author
-    pub content: String, // 4 + 500 bytes: Content of the comment
+    pub post_id: Pubkey, // 32 bytes: Public key of the post to which the comment belongs
+    pub id: [u8; 32],    // 32 bytes: Unique identifier for the comment
+    pub content: String, // 4 + 500 bytes = 504 bytes (String length prefix + content string): Content of the comment
     pub created_at: i64, // 8 bytes: Timestamp when the comment was created
     pub updated_at: i64, // 8 bytes: Timestamp when the comment was last updated
 }
 
 /// Context for creating a new post.
 #[derive(Accounts)]
-#[instruction(title: String, content: String, id: u64)]
+#[instruction(id: [u8; 32], title: String, content: String)]
 pub struct CreatePost<'info> {
     #[account(
         init,                                                 // Initializes a new Post account
         payer = author,                                       // `author` pays for the account creation
-        space = 8 + 32 + 8 + 4 + 100 + 4 + 1000 + 8 + 8 + 4, // Total space for Post account
-        seeds = [b"post", author.key().as_ref(), id.to_le_bytes().as_ref()],
+        space = 8 + 32 + 32 + 4 + 100 + 4 + 1000 + 8 + 8 + 4, // Total space for Post account
+        seeds = [b"post", author.key().as_ref(), id.as_ref()],
         bump
     )]
     pub post: Account<'info, Post>, // The Post account to be created
@@ -114,7 +131,7 @@ pub struct CreatePost<'info> {
 pub struct UpdatePost<'info> {
     #[account(
         mut,
-        seeds = [b"post", author.key().as_ref(), post.id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation (pretty fucking obvious, i guess.)
+        seeds = [b"post", author.key().as_ref(), post.id.as_ref()], // this needs to match the seed used during account creation (pretty fucking obvious, i guess.)
         bump,
         has_one = author
     )]
@@ -129,7 +146,7 @@ pub struct UpdatePost<'info> {
 pub struct DeletePost<'info> {
     #[account(
         mut,
-        seeds = [b"post", author.key().as_ref(), post.id.to_le_bytes().as_ref()], // this needs to match the seed used during account creation
+        seeds = [b"post", author.key().as_ref(), post.id.as_ref()], // this needs to match the seed used during account creation
         bump,
         has_one = author,
         close = author
@@ -142,13 +159,13 @@ pub struct DeletePost<'info> {
 
 /// Context for adding a comment to a post.
 #[derive(Accounts)]
-#[instruction(id: u64, content: String)]
+#[instruction(id: [u8; 32], content: String)]
 pub struct AddComment<'info> {
     #[account(
         init,                                                 // Initializes a new Comment account
         payer = author,                                       // `author` pays for the account creation
-        space = 8 + 8 + 32 + 4 + 500 + 8 + 8,                 // Total space for Comment account
-        seeds = [b"comment", post.key().as_ref(), id.to_le_bytes().as_ref()],
+        space = 8 + 32 + 32 + 32 + 4 + 500 + 8 + 8,             // Total space for Comment account
+        seeds = [b"comment", post.key().as_ref(), id.as_ref()],
         bump
     )]
     pub comment: Account<'info, Comment>, // The Comment account to be created
@@ -164,7 +181,7 @@ pub struct AddComment<'info> {
 pub struct UpdateComment<'info> {
     #[account(
         mut,
-        seeds = [b"comment", post.key().as_ref(), comment.id.to_le_bytes().as_ref()],
+        seeds = [b"comment", post.key().as_ref(), comment.id.as_ref()],
         bump,
         has_one = author
     )]
@@ -180,7 +197,7 @@ pub struct DeleteComment<'info> {
     // We pass in the Post so that the seeds can reference it for the Comment account
     #[account(
         mut,
-        seeds = [b"comment", post.key().as_ref(), comment.id.to_le_bytes().as_ref()],
+        seeds = [b"comment", post.key().as_ref(), comment.id.as_ref()],
         bump,
         has_one = author,
         close = author
@@ -191,4 +208,12 @@ pub struct DeleteComment<'info> {
     pub author: Signer<'info>,
     // Needed because we are closing an account
     pub system_program: Program<'info, System>,
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Title or content exceeds maximum length")]
+    ExceedsMaxLength,
+    #[msg("Author mismatch")]
+    AuthorMismatch,
 }

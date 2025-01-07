@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-medium_clone = "EXint3MGu4oJkyYA96uQ1tw1RUBz9rpX2hXV71cGeGtA"
+medium_clone = "65RbBepVWEt1BJrZP8G9KvsigCjTpYUiYAwtRvTPNVx5"
 
 [registry]
 url = "https://api.apr.dev"
