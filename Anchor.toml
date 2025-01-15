@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-twitter_clone = "65RbBepVWEt1BJrZP8G9KvsigCjTpYUiYAwtRvTPNVx5"
+twitter_clone = "BPrjbxBWnwyBjAvFWejSVCvTmppqHqN8mdfD1Rwy4Pcf"
 
 [registry]
 url = "https://api.apr.dev"

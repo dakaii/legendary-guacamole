@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("65RbBepVWEt1BJrZP8G9KvsigCjTpYUiYAwtRvTPNVx5");
+declare_id!("BPrjbxBWnwyBjAvFWejSVCvTmppqHqN8mdfD1Rwy4Pcf");
 
 #[program]
 pub mod twitter_clone {
