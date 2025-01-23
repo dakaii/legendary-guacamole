@@ -1,4 +1,4 @@
-import { createSolanaRpc, address } from '@solana/web3.js';
+import { createSolanaRpc, address  } from '@solana/web3.js';
 
 // const mainnetRpc = createSolanaRpc(mainnet('https://api.mainnet-beta.solana.com'));
 
@@ -10,6 +10,6 @@ const rpcUrl = process.env.VITE_SOLANA_RPC_URL || 'http://localhost:8899';
 const programId = process.env.VITE_SOLANA_PROGRAM_ID || 'BPrjbxBWnwyBjAvFWejSVCvTmppqHqN8mdfD1Rwy4Pcf';
 
 const connection = createSolanaRpc(rpcUrl);
-const programPublicKey = address(programId);
+const solnanaAddress = address(programId);
 
-export { connection, programPublicKey };;
+export { connection, solnanaAddress };;

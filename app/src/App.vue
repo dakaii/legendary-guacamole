@@ -22,16 +22,15 @@ export default defineComponent({
 
     // Fetch the balance of a Solana account
     const fetchBalance = async () => {
-      const balance = await connection.getBalance(solnanaAddress).send();
-      console.log(balance);
-      balance.value = balance.;
-      // balance.value = balance / 1e9; // Convert lamports to SOL
+      const { value: lamports } = await connection.getBalance(solnanaAddress).send();
+      console.log(balance)
+      balance.value = Number(BigInt(lamports)) / 10 ** 9;
     };
 
     // Fetch posts from the Solana program
     const fetchPosts = async () => {
-      const posts = await program.account.post.all();
-      posts.value = posts;
+      // const posts = await program.account.post.all();
+      // posts.value = posts;
     };
 
     onMounted(() => {
